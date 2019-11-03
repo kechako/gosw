@@ -23,3 +23,9 @@ func WithVersionLinkName(name string) Option {
 		env.verLinkName = name
 	})
 }
+
+func WithConfigDir(dir string) Option {
+	return optionFunc(func(env *Env) {
+		env.confDir = dir
+	})
+}

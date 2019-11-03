@@ -62,6 +62,21 @@ func (app *App) init() {
 			Action: app.switchCommand,
 		},
 		{
+			Name:   "update",
+			Usage:  "update download list",
+			Action: app.updateCommand,
+		},
+		{
+			Name:   "dllist",
+			Usage:  "list downloads",
+			Action: app.dlListCommand,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name: "verbose",
+				},
+			},
+		},
+		{
 			Name:   "install",
 			Usage:  "Install specified version of Go",
 			Action: app.installCommand,
@@ -140,6 +155,39 @@ func (app *App) uninstallCommand(c *cli.Context) error {
 
 	if err := app.env.Uninstall(v); err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (app *App) updateCommand(c *cli.Context) error {
+	if err := app.env.UpdateDownloadList(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (app *App) dlListCommand(c *cli.Context) error {
+	releases, err := app.env.Releases()
+	if err != nil {
+		return err
+	}
+
+	verbose := c.Bool("verbose")
+
+	for _, r := range releases {
+		if verbose {
+			fmt.Printf("%s %t %s %d %s\n",
+				r.Version,
+				r.Stable,
+				r.Filename,
+				r.Size,
+				r.ChecksumSHA256,
+			)
+		} else {
+			fmt.Println(r.Version)
+		}
 	}
 
 	return nil
