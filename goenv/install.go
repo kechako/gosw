@@ -193,7 +193,7 @@ func writeFile(path string, perm os.FileMode, r io.Reader) error {
 }
 
 func (env *Env) Uninstall(v *Version) error {
-	if env.HasVersion(v) {
+	if !env.HasVersion(v) {
 		return errors.New("specified version is not installed")
 	}
 	goRoot := env.versionGoRoot(v)
