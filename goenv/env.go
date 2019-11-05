@@ -124,6 +124,21 @@ func (env *Env) Switch(v *Version) error {
 	return env.makeLink(v)
 }
 
+func (env *Env) Clean() error {
+	archives, err := filepath.Glob(filepath.Join(env.cacheDir, "/*"))
+	if err != nil {
+		return err
+	}
+
+	for _, archive := range archives {
+		if err := os.RemoveAll(archive); err != nil {
+			return fmt.Errorf("failed to remove cached archive: %s: %w", archive, err)
+		}
+	}
+
+	return nil
+}
+
 func (env *Env) linkPath() string {
 	return filepath.Join(env.envRoot, env.verLinkName)
 }

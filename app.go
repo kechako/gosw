@@ -86,6 +86,11 @@ func (app *App) init() {
 			Usage:  "Uninstall specified version of Go",
 			Action: app.uninstallCommand,
 		},
+		{
+			Name:   "clean",
+			Usage:  "Clean downloaded archive cached.",
+			Action: app.cleanCommand,
+		},
 	}
 
 	a.OnUsageError = func(context *cli.Context, err error, isSubcommand bool) error {
@@ -188,6 +193,14 @@ func (app *App) dlListCommand(c *cli.Context) error {
 		} else {
 			fmt.Println(r.Version)
 		}
+	}
+
+	return nil
+}
+
+func (app *App) cleanCommand(c *cli.Context) error {
+	if err := app.env.Clean(); err != nil {
+		return err
 	}
 
 	return nil
