@@ -18,23 +18,50 @@ const (
 )
 
 func (env *Env) Install(v *Version) error {
-	if env.releases == nil {
-		if err := env.loadReleases(); err != nil {
-			return err
-		}
-	}
-
 	if env.HasVersion(v) {
 		return errors.New("specified version is already installed")
 	}
 
-	goRoot := env.versionGoRoot(v)
-	dlURL, err := env.downloadURL(v)
+	dlURL, dlName, err := env.downloadURL(v)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequest(http.MethodGet, dlURL, nil)
+	if err := os.MkdirAll(env.cacheDir, 0755); err != nil {
+		return fmt.Errorf("failed to create cache directory: %w", err)
+	}
+
+	cachePath := filepath.Join(env.cacheDir, dlName)
+
+	goRoot := env.versionGoRoot(v)
+
+	if _, err := os.Stat(cachePath); err != nil {
+		if err := download(dlURL, cachePath); err != nil {
+			return err
+		}
+	}
+
+	if _, err := os.Stat(goRoot); err == nil {
+		return errors.New("install target directory already exists")
+	}
+
+	if err := os.Mkdir(goRoot, 0755); err != nil {
+		return fmt.Errorf("failed to create install target directory: %w", err)
+	}
+
+	if err := extractTar(cachePath, goRoot, true, 1); err != nil {
+		return err
+	}
+
+	if err := env.fixBrokenLink(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func download(url, path string) error {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create download request: %w", err)
 	}
@@ -54,35 +81,38 @@ func (env *Env) Install(v *Version) error {
 		return fmt.Errorf("failed to download archive: %s", res.Status)
 	}
 
-	if _, err := os.Stat(goRoot); err == nil {
-		return errors.New("install target directory already exists")
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("failed to create cache file: %w", err)
 	}
+	defer file.Close()
 
-	if err := os.Mkdir(goRoot, 0755); err != nil {
-		return fmt.Errorf("failed to create install target directory: %w", err)
-	}
-
-	if err := extractTar(res.Body, goRoot, true, 1); err != nil {
-		return err
-	}
-
-	if err := env.fixBrokenLink(); err != nil {
-		return err
+	if _, err := io.Copy(file, res.Body); err != nil {
+		return fmt.Errorf("failed to download archive: %w", err)
 	}
 
 	return nil
 }
 
-func (env *Env) downloadURL(v *Version) (string, error) {
+func (env *Env) downloadURL(v *Version) (string, string, error) {
 	r, err := env.FindRelease(v)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return downloadBaseURL + r.Filename, nil
+	return downloadBaseURL + r.Filename, r.Filename, nil
 }
 
-func extractTar(r io.Reader, dest string, isGzip bool, strip int) error {
+func extractTar(fileName string, dest string, isGzip bool, strip int) error {
+	var r io.Reader
+
+	file, err := os.Open(fileName)
+	if err != nil {
+		return fmt.Errorf("failed to open cached archive: %w", err)
+	}
+	defer file.Close()
+
+	r = file
 	if isGzip {
 		gzr, err := gzip.NewReader(r)
 		if err != nil {

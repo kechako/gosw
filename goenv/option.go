@@ -29,3 +29,9 @@ func WithConfigDir(dir string) Option {
 		env.confDir = dir
 	})
 }
+
+func WithCacheDir(dir string) Option {
+	return optionFunc(func(env *Env) {
+		env.cacheDir = dir
+	})
+}

@@ -17,6 +17,7 @@ type Env struct {
 	envRoot     string
 	verLinkName string
 	confDir     string
+	cacheDir    string
 
 	installedVersions map[string]*Version
 	releases          []*Release
@@ -38,6 +39,10 @@ func New(opts ...Option) (*Env, error) {
 			return nil, err
 		}
 		env.confDir = confDir
+	}
+
+	if env.cacheDir == "" {
+		env.cacheDir = getCachePath()
 	}
 
 	if err := env.init(); err != nil {
@@ -176,4 +181,15 @@ func getConfPath() (string, error) {
 	}
 
 	return confDir + "/gosw", nil
+}
+
+func getCachePath() string {
+	cacheDir, err := os.UserCacheDir()
+	if err != nil {
+		tempDir := os.TempDir()
+
+		return tempDir + "/.gosw"
+	}
+
+	return cacheDir + "/gosw"
 }
