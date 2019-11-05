@@ -117,7 +117,7 @@ func (env *Env) HasVersion(v *Version) bool {
 }
 
 func (env *Env) Switch(v *Version) error {
-	if env.HasVersion(v) {
+	if !env.HasVersion(v) {
 		return errors.New("specified version is not installed")
 	}
 
