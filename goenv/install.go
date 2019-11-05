@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/cheggaaa/pb/v3"
 )
 
 const (
@@ -49,6 +51,7 @@ func (env *Env) Install(v *Version) error {
 		return fmt.Errorf("failed to create install target directory: %w", err)
 	}
 
+	fmt.Println("Extract...")
 	e.extract(goRoot)
 
 	if err := env.fixBrokenLink(); err != nil {
@@ -85,7 +88,21 @@ func download(url, path string) error {
 	}
 	defer file.Close()
 
-	if _, err := io.Copy(file, res.Body); err != nil {
+	var r io.Reader = res.Body
+	if res.ContentLength > 0 {
+		bar := pb.New64(res.ContentLength).SetTemplate(pb.Full)
+
+		r = bar.NewProxyReader(res.Body)
+		bar.Set(pb.Bytes, true)
+		bar.Set("prefix", "Download... ")
+
+		bar.Start()
+		defer bar.Finish()
+	} else {
+		fmt.Println("Download...")
+	}
+
+	if _, err := io.Copy(file, r); err != nil {
 		return fmt.Errorf("failed to download archive: %w", err)
 	}
 
