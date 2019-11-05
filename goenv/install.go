@@ -1,16 +1,12 @@
 package goenv
 
 import (
-	"archive/tar"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
-	"time"
 )
 
 const (
@@ -27,11 +23,15 @@ func (env *Env) Install(v *Version) error {
 		return err
 	}
 
+	cachePath := filepath.Join(env.cacheDir, dlName)
+	e, err := getExtractor(cachePath)
+	if err != nil {
+		return err
+	}
+
 	if err := os.MkdirAll(env.cacheDir, 0755); err != nil {
 		return fmt.Errorf("failed to create cache directory: %w", err)
 	}
-
-	cachePath := filepath.Join(env.cacheDir, dlName)
 
 	goRoot := env.versionGoRoot(v)
 
@@ -49,9 +49,7 @@ func (env *Env) Install(v *Version) error {
 		return fmt.Errorf("failed to create install target directory: %w", err)
 	}
 
-	if err := extractTar(cachePath, goRoot, true, 1); err != nil {
-		return err
-	}
+	e.extract(goRoot)
 
 	if err := env.fixBrokenLink(); err != nil {
 		return err
@@ -101,95 +99,6 @@ func (env *Env) downloadURL(v *Version) (string, string, error) {
 	}
 
 	return downloadBaseURL + r.Filename, r.Filename, nil
-}
-
-func extractTar(fileName string, dest string, isGzip bool, strip int) error {
-	var r io.Reader
-
-	file, err := os.Open(fileName)
-	if err != nil {
-		return fmt.Errorf("failed to open cached archive: %w", err)
-	}
-	defer file.Close()
-
-	r = file
-	if isGzip {
-		gzr, err := gzip.NewReader(r)
-		if err != nil {
-			return fmt.Errorf("failed to decompress gzip: %w", err)
-		}
-		defer gzr.Close()
-
-		r = gzr
-	}
-
-	tr := tar.NewReader(r)
-
-	for {
-		h, err := tr.Next()
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-
-			return fmt.Errorf("failed to read tar: %w", err)
-		}
-		info := h.FileInfo()
-
-		rpath := stripPath(h.Name, strip)
-		if rpath == "" {
-			continue
-		}
-
-		path := filepath.Join(dest, rpath)
-		perm := os.FileMode(h.Mode)
-
-		if info.IsDir() {
-			os.Mkdir(path, perm)
-		} else {
-			if err := writeFile(path, perm, tr); err != nil {
-				return err
-			}
-		}
-		if !info.ModTime().IsZero() {
-			if err := os.Chtimes(path, time.Now(), info.ModTime()); err != nil {
-				fmt.Fprintf(os.Stderr, "%s: failed to change the access and modification times: %v\n", path, err)
-			}
-		}
-	}
-
-	return nil
-}
-
-func stripPath(path string, strip int) string {
-	if path[0] == filepath.Separator {
-		path = path[1:]
-	}
-
-	for i := 0; i < strip; i++ {
-		i := strings.Index(path, string(filepath.Separator))
-		if i < 0 {
-			return ""
-		}
-
-		path = path[i+1:]
-	}
-
-	return path
-}
-
-func writeFile(path string, perm os.FileMode, r io.Reader) error {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, perm)
-	if err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-	defer file.Close()
-
-	if _, err := io.Copy(file, r); err != nil {
-		return fmt.Errorf("failed to create file: %w", err)
-	}
-
-	return nil
 }
 
 func (env *Env) Uninstall(v *Version) error {
