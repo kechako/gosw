@@ -1,4 +1,5 @@
-package goenv
+// Package env manages environment of Go.
+package env
 
 import (
 	"errors"

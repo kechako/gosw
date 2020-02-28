@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kechako/gosw/goenv"
+	"github.com/kechako/gosw/env"
 	"github.com/urfave/cli"
 )
 
 type App struct {
 	app *cli.App
-	env *goenv.Env
+	env *env.Env
 }
 
 func NewApp() *App {
@@ -39,8 +39,8 @@ func (app *App) init() {
 	}
 
 	a.Before = func(c *cli.Context) error {
-		env, err := goenv.New(
-			goenv.WithEnvRoot(c.GlobalString("root")),
+		env, err := env.New(
+			env.WithEnvRoot(c.GlobalString("root")),
 		)
 		if err != nil {
 			return err
@@ -127,7 +127,7 @@ func (app *App) listCommand(c *cli.Context) error {
 }
 
 func (app *App) switchCommand(c *cli.Context) error {
-	v, err := goenv.ParseVersion(c.Args().First())
+	v, err := env.ParseVersion(c.Args().First())
 	if err != nil {
 		return errors.New("version syntax is not valid")
 	}
@@ -140,7 +140,7 @@ func (app *App) switchCommand(c *cli.Context) error {
 }
 
 func (app *App) installCommand(c *cli.Context) error {
-	v, err := goenv.ParseVersion(c.Args().First())
+	v, err := env.ParseVersion(c.Args().First())
 	if err != nil {
 		return errors.New("version syntax is not valid")
 	}
@@ -153,7 +153,7 @@ func (app *App) installCommand(c *cli.Context) error {
 }
 
 func (app *App) uninstallCommand(c *cli.Context) error {
-	v, err := goenv.ParseVersion(c.Args().First())
+	v, err := env.ParseVersion(c.Args().First())
 	if err != nil {
 		return errors.New("version syntax is not valid")
 	}
