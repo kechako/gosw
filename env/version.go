@@ -5,14 +5,16 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 )
 
 type VersionType int
 
 const (
-	StableVersion VersionType = iota
-	BetaVersion
-	RCVersion
+	Stable VersionType = iota
+	Beta
+	RC
+	Head
 )
 
 type Version struct {
@@ -27,7 +29,15 @@ var ErrVersionSyntax = errors.New("invalid version syntax")
 
 var versionRegexp = regexp.MustCompile(`^(1)\.([0-9]+)((\.([0-9]+))|((beta|rc)([0-9]+)))?$`)
 
+const headVersion = "go-head"
+
 func ParseVersion(s string) (*Version, error) {
+	if s == headVersion {
+		return &Version{Type: Head}, nil
+	}
+
+	s = strings.TrimPrefix(s, "go")
+
 	matches := versionRegexp.FindStringSubmatch(s)
 	if matches == nil {
 		return nil, ErrVersionSyntax
@@ -47,19 +57,19 @@ func ParseVersion(s string) (*Version, error) {
 	var tp VersionType
 	if matches[3] == "" {
 		// major and minor only
-		tp = StableVersion
+		tp = Stable
 	} else if matches[5] != "" {
 		var err error
 		patch, err = strconv.Atoi(matches[5])
 		if err != nil {
 			return nil, ErrVersionSyntax
 		}
-		tp = StableVersion
+		tp = Stable
 	} else {
 		if matches[7] == "beta" {
-			tp = BetaVersion
+			tp = Beta
 		} else {
-			tp = RCVersion
+			tp = RC
 		}
 
 		var err error
@@ -80,22 +90,32 @@ func ParseVersion(s string) (*Version, error) {
 
 func (v *Version) String() string {
 	switch v.Type {
-	case StableVersion:
+	case Stable:
 		if v.Patch > 0 {
 			return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 		}
 
 		return fmt.Sprintf("%d.%d", v.Major, v.Minor)
-	case BetaVersion:
+	case Beta:
 		return fmt.Sprintf("%d.%dbeta%d", v.Major, v.Minor, v.Release)
-	case RCVersion:
+	case RC:
 		return fmt.Sprintf("%d.%drc%d", v.Major, v.Minor, v.Release)
+	case Head:
+		return headVersion
 	}
 
 	return ""
 }
 
 func CompareVersion(x, y *Version) int {
+	if x.Type == Head && y.Type == Head {
+		return 0
+	} else if x.Type == Head {
+		return 1
+	} else if y.Type == Head {
+		return -1
+	}
+
 	if x.Major != y.Major {
 		return compareInt(x.Major, y.Major)
 	}
@@ -105,24 +125,24 @@ func CompareVersion(x, y *Version) int {
 	}
 
 	if x.Type != y.Type {
-		if x.Type == StableVersion {
+		if x.Type == Stable {
 			return 1
 		}
 
-		if x.Type == BetaVersion {
+		if x.Type == Beta {
 			return -1
 		}
 
-		if y.Type == StableVersion {
+		if y.Type == Stable {
 			return -1
 		}
 
-		if y.Type == BetaVersion {
+		if y.Type == Beta {
 			return 1
 		}
 	}
 
-	if x.Type == StableVersion {
+	if x.Type == Stable {
 		return compareInt(x.Patch, y.Patch)
 	} else {
 		return compareInt(x.Release, y.Release)

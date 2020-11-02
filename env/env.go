@@ -78,7 +78,7 @@ func installedVersions(root string) ([]*Version, error) {
 			if !info.IsDir() {
 				continue
 			}
-			str := info.Name()[2:]
+			str := info.Name()
 			version, err := ParseVersion(str)
 			if err != nil {
 				fmt.Println(err, str)
