@@ -102,7 +102,7 @@ func convertReleases(releases []remoteRelease) ([]*Release, error) {
 
 	for _, r := range releases {
 		for _, f := range r.Files {
-			if f.OS != runtime.GOOS || f.Arch != runtime.GOARCH || f.Kind != "archive" {
+			if !targetRelease(f) {
 				continue
 			}
 
@@ -126,6 +126,23 @@ func convertReleases(releases []remoteRelease) ([]*Release, error) {
 	})
 
 	return rls, nil
+}
+
+func targetRelease(f remoteFile) bool {
+	if f.OS != runtime.GOOS || f.Kind != "archive" {
+		return false
+	}
+
+	arch := runtime.GOARCH
+	if arch == "arm" {
+		arch = "armv6l"
+	}
+
+	if f.Arch != arch {
+		return false
+	}
+
+	return true
 }
 
 var ErrReleasesFileNotDownloaded = errors.New("releases file is not found")
