@@ -145,7 +145,13 @@ func (env *Env) linkPath() string {
 }
 
 func (env *Env) versionGoRoot(v *Version) string {
-	return filepath.Join(env.envRoot, "go"+v.String())
+	var name string
+	if v.Type == Head {
+		name = v.String()
+	} else {
+		name = "go" + v.String()
+	}
+	return filepath.Join(env.envRoot, name)
 }
 
 func (env *Env) fixBrokenLink() error {
