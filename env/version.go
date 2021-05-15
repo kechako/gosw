@@ -27,7 +27,7 @@ type Version struct {
 
 var ErrVersionSyntax = errors.New("invalid version syntax")
 
-var versionRegexp = regexp.MustCompile(`^(1)\.([0-9]+)((\.([0-9]+))|((beta|rc)([0-9]+)))?$`)
+var versionRegexp = regexp.MustCompile(`^(1)\.([0-9]+)(\.([0-9]+))?((beta|rc)([0-9]+))?$`)
 
 const headVersion = "go-head"
 
@@ -39,7 +39,7 @@ func ParseVersion(s string) (*Version, error) {
 	s = strings.TrimPrefix(s, "go")
 
 	matches := versionRegexp.FindStringSubmatch(s)
-	if matches == nil {
+	if len(matches) != 8 {
 		return nil, ErrVersionSyntax
 	}
 
@@ -53,38 +53,44 @@ func ParseVersion(s string) (*Version, error) {
 		return nil, ErrVersionSyntax
 	}
 
-	var patch, rn int
-	var tp VersionType
-	if matches[3] == "" {
-		// major and minor only
-		tp = Stable
-	} else if matches[5] != "" {
-		var err error
-		patch, err = strconv.Atoi(matches[5])
+	var patch int
+	if matches[4] != "" {
+		p, err := strconv.Atoi(matches[4])
 		if err != nil {
 			return nil, ErrVersionSyntax
 		}
-		tp = Stable
-	} else {
-		if matches[7] == "beta" {
-			tp = Beta
-		} else {
-			tp = RC
+		patch = p
+	}
+
+	var release int
+	var typ VersionType
+	if matches[6] == "" && matches[7] == "" {
+		typ = Stable
+	} else if matches[6] != "" && matches[7] != "" {
+		switch matches[6] {
+		case "beta":
+			typ = Beta
+		case "rc":
+			typ = RC
+		default:
+			return nil, ErrVersionSyntax
 		}
 
-		var err error
-		rn, err = strconv.Atoi(matches[8])
+		r, err := strconv.Atoi(matches[7])
 		if err != nil {
 			return nil, ErrVersionSyntax
 		}
+		release = r
+	} else {
+		return nil, ErrVersionSyntax
 	}
 
 	return &Version{
 		Major:   major,
 		Minor:   minor,
 		Patch:   patch,
-		Type:    tp,
-		Release: rn,
+		Type:    typ,
+		Release: release,
 	}, nil
 }
 
