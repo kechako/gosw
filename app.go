@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/kechako/gosw/env"
-	"github.com/urfave/cli"
+	cli "github.com/urfave/cli/v2"
 )
 
 type App struct {
@@ -26,21 +26,21 @@ func (app *App) init() {
 	a.Name = appName
 	a.Version = appVersion
 	a.Usage = "Switch version of Go."
-	a.Authors = []cli.Author{
+	a.Authors = []*cli.Author{
 		{Name: "Ryosuke Akiyama", Email: "r@554.jp"},
 	}
 	a.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "root",
-			Value:  "/usr/local/go",
-			Usage:  "Root directory to install Go",
-			EnvVar: "GOSW_ROOT",
+		&cli.StringFlag{
+			Name:    "root",
+			Value:   "/usr/local/go",
+			Usage:   "Root directory to install Go",
+			EnvVars: []string{"GOSW_ROOT"},
 		},
 	}
 
 	a.Before = func(c *cli.Context) error {
 		env, err := env.New(
-			env.WithEnvRoot(c.GlobalString("root")),
+			env.WithEnvRoot(c.String("root")),
 		)
 		if err != nil {
 			return err
@@ -50,7 +50,7 @@ func (app *App) init() {
 		return nil
 	}
 
-	a.Commands = []cli.Command{
+	a.Commands = []*cli.Command{
 		{
 			Name:   "list",
 			Usage:  "List installed versions",
@@ -71,7 +71,7 @@ func (app *App) init() {
 			Usage:  "list downloads",
 			Action: app.dlListCommand,
 			Flags: []cli.Flag{
-				cli.BoolFlag{
+				&cli.BoolFlag{
 					Name: "verbose",
 				},
 			},
