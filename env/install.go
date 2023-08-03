@@ -52,7 +52,9 @@ func (env *Env) Install(v *Version) error {
 	}
 
 	fmt.Println("Extract...")
-	e.extract(goRoot)
+	if err := e.extract(goRoot); err != nil {
+		return fmt.Errorf("failed to extract archive: %w", err)
+	}
 
 	if err := env.fixBrokenLink(); err != nil {
 		return err

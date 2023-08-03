@@ -78,7 +78,10 @@ func (a *tarArchive) extract(dest string) error {
 		perm := os.FileMode(h.Mode)
 
 		if info.IsDir() {
-			os.Mkdir(path, perm)
+			err := os.Mkdir(path, perm)
+			if err != nil {
+				return fmt.Errorf("failed to make directory: %s: %w", path, err)
+			}
 		} else {
 			if err := makeDirForFile(path); err != nil {
 				return err
@@ -124,7 +127,10 @@ func (a *zipArchive) extract(dest string) error {
 
 		info := file.FileInfo()
 		if info.IsDir() {
-			os.Mkdir(path, perm)
+			err := os.Mkdir(path, perm)
+			if err != nil {
+				return fmt.Errorf("failed to make directory: %s: %w", path, err)
+			}
 		} else {
 			if err := makeDirForFile(path); err != nil {
 				return err
