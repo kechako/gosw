@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -79,6 +80,9 @@ func (a *tarArchive) extract(dest string) error {
 		if info.IsDir() {
 			os.Mkdir(path, perm)
 		} else {
+			if err := makeDirForFile(path); err != nil {
+				return err
+			}
 			if err := writeFile(path, perm, tr); err != nil {
 				return err
 			}
@@ -122,6 +126,9 @@ func (a *zipArchive) extract(dest string) error {
 		if info.IsDir() {
 			os.Mkdir(path, perm)
 		} else {
+			if err := makeDirForFile(path); err != nil {
+				return err
+			}
 			if err := writeFile(path, perm, r); err != nil {
 				r.Close()
 				return err
@@ -163,6 +170,24 @@ func writeFile(path string, perm os.FileMode, r io.Reader) error {
 
 	if _, err := io.Copy(file, r); err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
+	}
+
+	return nil
+}
+
+func makeDirForFile(path string) error {
+	dir := filepath.Dir(path)
+	_, err := os.Stat(dir)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to make parent directory of the path: failed to get if parent directory of the path exists or not: %w", err)
+	}
+
+	err = os.MkdirAll(dir, 0755)
+	if err != nil {
+		return fmt.Errorf("failed to make parent directory of the path: %w", err)
 	}
 
 	return nil
