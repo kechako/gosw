@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"iter"
 	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -180,12 +182,87 @@ func (env *Env) Releases() ([]*Release, error) {
 		}
 	}
 
-	releases := make([]*Release, 0, len(env.releases))
-	for _, r := range env.releases {
-		releases = append(releases, &(*r))
+	if len(env.releases) == 0 {
+		return nil, nil
 	}
 
+	return slices.Clone(env.releases), nil
+}
+
+func (env *Env) RecentReleases() ([]*Release, error) {
+	if env.releases == nil {
+		if err := env.loadReleases(); err != nil {
+			return nil, err
+		}
+	}
+
+	if len(env.releases) == 0 {
+		return nil, nil
+	}
+
+	releases := slices.Collect(env.selectRecentReleases(2))
+	slices.Reverse(releases)
+
 	return releases, nil
+}
+
+func (env *Env) selectRecentReleases(n int) iter.Seq[*Release] {
+	return func(yield func(*Release) bool) {
+		var latest *Version
+		// add the latest unstable release first
+		for _, r := range slices.Backward(env.releases) {
+			if r.Stable {
+				break
+			}
+
+			if latest == nil {
+				latest = &Version{
+					Major: r.Version.Major,
+					Minor: r.Version.Minor,
+				}
+			}
+
+			if r.Version.Major != latest.Major || r.Version.Minor != latest.Minor {
+				break
+			}
+
+			if !yield(r) {
+				return
+			}
+		}
+
+		latest = nil
+		count := 0
+		// add the latest stable releases second
+		for _, r := range slices.Backward(env.releases) {
+			if !r.Stable {
+				continue
+			}
+
+			if latest == nil || r.Version.Major != latest.Major || r.Version.Minor != latest.Minor {
+				if latest != nil {
+					n--
+				}
+				if n == 0 {
+					break
+				}
+				count = 0
+
+				latest = &Version{
+					Major: r.Version.Major,
+					Minor: r.Version.Minor,
+				}
+			}
+
+			if count < 2 {
+				if !yield(r) {
+					return
+				}
+			}
+			count++
+		}
+	}
+
 }
 
 func (env *Env) FindRelease(v *Version) (*Release, error) {
@@ -197,7 +274,7 @@ func (env *Env) FindRelease(v *Version) (*Release, error) {
 
 	for _, r := range env.releases {
 		if EqualVersion(r.Version, v) {
-			return &(*r), nil
+			return r, nil
 		}
 	}
 
